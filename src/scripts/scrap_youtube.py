@@ -124,7 +124,7 @@ def get_playlist_videos(youtube, playlist_id):
         video_list.append(video)
 
     # create dataframe
-    video_df = pd.DataFrame(video_list)
+    video_df = video_list
     return video_df
 
 # get video stats
@@ -140,17 +140,29 @@ def get_video_stats(youtube, video_id):
 
     # create dictionary
     video = dict()
-    video["id"] = response["items"][0]["id"]
-    video["tags"] = response["items"][0]["snippet"].get("tags")
-    video["is_live"] = response["items"][0]["snippet"].get("liveBroadcastContent")
-    video["duration"] = response["items"][0]["contentDetails"].get("duration")
-    video["view_count"] = response["items"][0]["statistics"].get("viewCount")
-    video["like_count"] = response["items"][0]["statistics"].get("likeCount")
-    video["dislike_count"] = response["items"][0]["statistics"].get("dislikeCount")
-    video["favorite_count"] = response["items"][0]["statistics"].get("favoriteCount")
-    video["comment_count"] = response["items"][0]["statistics"].get("commentCount")
+    try:
+        video["id"] = video_id
+        video["tags"] = response["items"][0]["snippet"].get("tags")
+        video["is_live"] = response["items"][0]["snippet"].get("liveBroadcastContent")
+        video["duration"] = response["items"][0]["contentDetails"].get("duration")
+        video["view_count"] = response["items"][0]["statistics"].get("viewCount")
+        video["like_count"] = response["items"][0]["statistics"].get("likeCount")
+        video["dislike_count"] = response["items"][0]["statistics"].get("dislikeCount")
+        video["favorite_count"] = response["items"][0]["statistics"].get("favoriteCount")
+        video["comment_count"] = response["items"][0]["statistics"].get("commentCount")
+    except:
+        print(f"Error with video {video_id}")
+        video["id"] = video_id
+        video["tags"] = np.nan
+        video["is_live"] = np.nan
+        video["duration"] = np.nan
+        video["view_count"] = np.nan
+        video["like_count"] = np.nan
+        video["dislike_count"] = np.nan
+        video["favorite_count"] = np.nan
+        video["comment_count"] = np.nan
 
-    return pd.Series(video)
+    return video
 
 # %% =============================================================================
 # MAIN
@@ -169,8 +181,12 @@ with open(f"{FOLDER}/channel_stats.json", "w") as f:
 # %% get channel playlists
 print("Getting channel playlists...")
 df_playlists = get_channel_playlists(youtube, CHANNEL_ID)
+# remove last one
+df_playlists = df_playlists.iloc[:-1]
+
 # save data
 df_playlists.to_parquet(f"{FOLDER}/channel_playlists.parquet")
+
 
 # %% get playlist videos
 print("Getting playlist videos...")
@@ -184,6 +200,9 @@ df_videos = pd.concat(list_videos)
 # save data
 df_videos.to_parquet(f"{FOLDER}/playlist_videos.parquet")
 
+# %% wrangle data
+df_videos = df_videos.reset_index(drop=True)
+
 # %% get video stats
 print("Getting video stats...")
 list_video_stats = list()
@@ -191,8 +210,10 @@ for video_id in tqdm(df_videos["id"].unique()):
     video_stats = get_video_stats(youtube, video_id)
     list_video_stats.append(video_stats)
     time.sleep(1)
-df_video_stats = pd.concat(list_video_stats)
+df_video_stats = pd.DataFrame(list_video_stats)
 # save data
 df_video_stats.to_parquet(f"{FOLDER}/videos_stats.parquet")
 
 
+
+# %%
